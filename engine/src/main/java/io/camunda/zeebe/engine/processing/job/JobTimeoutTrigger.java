@@ -9,6 +9,7 @@ package io.camunda.zeebe.engine.processing.job;
 
 import static io.camunda.zeebe.util.sched.clock.ActorClock.currentTimeMillis;
 
+import io.camunda.zeebe.engine.Loggers;
 import io.camunda.zeebe.engine.processing.streamprocessor.ReadonlyProcessingContext;
 import io.camunda.zeebe.engine.processing.streamprocessor.StreamProcessorLifecycleAware;
 import io.camunda.zeebe.engine.processing.streamprocessor.writers.TypedCommandWriter;
@@ -16,9 +17,11 @@ import io.camunda.zeebe.engine.state.immutable.JobState;
 import io.camunda.zeebe.protocol.record.intent.JobIntent;
 import io.camunda.zeebe.util.sched.ScheduledTimer;
 import java.time.Duration;
+import org.slf4j.Logger;
 
 public final class JobTimeoutTrigger implements StreamProcessorLifecycleAware {
   public static final Duration TIME_OUT_POLLING_INTERVAL = Duration.ofSeconds(30);
+  private static final Logger LOGGER = Loggers.PROCESS_PROCESSOR_LOGGER;
   private final JobState state;
 
   private ScheduledTimer timer;
@@ -79,7 +82,11 @@ public final class JobTimeoutTrigger implements StreamProcessorLifecycleAware {
           writer.reset();
           writer.appendFollowUpCommand(key, JobIntent.TIME_OUT, record);
 
-          return writer.flush() >= 0;
+          final long newPos = writer.flush();
+          if (newPos < 0) {
+            LOGGER.error("deactivateTimedOutJobs: unable to flush: key={}, record={}", key, record);
+          }
+          return newPos >= 0;
         });
   }
 }
