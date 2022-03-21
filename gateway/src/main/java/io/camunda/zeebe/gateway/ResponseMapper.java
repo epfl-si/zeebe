@@ -65,53 +65,44 @@ public final class ResponseMapper {
       final long key, final DeploymentRecord brokerResponse) {
     final var responseBuilder = DeployResponse.newBuilder().setKey(key);
 
-    brokerResponse
-        .processesMetadata()
-        .forEach(
+    brokerResponse.processesMetadata().stream()
+        .map(
             process ->
-                responseBuilder
-                    .addDeploymentsBuilder()
-                    .setProcess(
-                        ProcessMetadata.newBuilder()
-                            .setBpmnProcessId(process.getBpmnProcessId())
-                            .setVersion(process.getVersion())
-                            .setProcessDefinitionKey(process.getKey())
-                            .setResourceName(process.getResourceName())
-                            .build()));
+                ProcessMetadata.newBuilder()
+                    .setBpmnProcessId(process.getBpmnProcessId())
+                    .setVersion(process.getVersion())
+                    .setProcessDefinitionKey(process.getKey())
+                    .setResourceName(process.getResourceName())
+                    .build())
+        .forEach(process -> responseBuilder.addDeploymentsBuilder().setProcess(process));
 
-    brokerResponse
-        .decisionsMetadata()
-        .forEach(
+    brokerResponse.decisionsMetadata().stream()
+        .map(
             decision ->
-                responseBuilder
-                    .addDeploymentsBuilder()
-                    .setDecision(
-                        DecisionMetadata.newBuilder()
-                            .setDmnDecisionId(decision.getDecisionId())
-                            .setDmnDecisionName(decision.getDecisionName())
-                            .setVersion(decision.getVersion())
-                            .setDecisionKey(decision.getDecisionKey())
-                            .setDmnDecisionRequirementsId(decision.getDecisionRequirementsId())
-                            .setDecisionRequirementsKey(decision.getDecisionRequirementsKey())
-                            .setIsDuplicate(decision.isDuplicate())
-                            .build()));
+                DecisionMetadata.newBuilder()
+                    .setDmnDecisionId(decision.getDecisionId())
+                    .setDmnDecisionName(decision.getDecisionName())
+                    .setVersion(decision.getVersion())
+                    .setDecisionKey(decision.getDecisionKey())
+                    .setDmnDecisionRequirementsId(decision.getDecisionRequirementsId())
+                    .setDecisionRequirementsKey(decision.getDecisionRequirementsKey())
+                    .setIsDuplicate(decision.isDuplicate())
+                    .build())
+        .forEach(decision -> responseBuilder.addDeploymentsBuilder().setDecision(decision));
 
-    brokerResponse
-        .decisionRequirementsMetadata()
-        .forEach(
+    brokerResponse.decisionRequirementsMetadata().stream()
+        .map(
             drg ->
-                responseBuilder
-                    .addDeploymentsBuilder()
-                    .setDecisionRequirements(
-                        DecisionRequirementsMetadata.newBuilder()
-                            .setDmnDecisionRequirementsId(drg.getDecisionRequirementsId())
-                            .setDmnDecisionRequirementsName(drg.getDecisionRequirementsName())
-                            .setVersion(drg.getDecisionRequirementsVersion())
-                            .setDecisionRequirementsKey(drg.getDecisionRequirementsKey())
-                            .setNamespace(drg.getNamespace())
-                            .setResourceName(drg.getResourceName())
-                            .setIsDuplicate(drg.isDuplicate())
-                            .build()));
+                DecisionRequirementsMetadata.newBuilder()
+                    .setDmnDecisionRequirementsId(drg.getDecisionRequirementsId())
+                    .setDmnDecisionRequirementsName(drg.getDecisionRequirementsName())
+                    .setVersion(drg.getDecisionRequirementsVersion())
+                    .setDecisionRequirementsKey(drg.getDecisionRequirementsKey())
+                    .setNamespace(drg.getNamespace())
+                    .setResourceName(drg.getResourceName())
+                    .setIsDuplicate(drg.isDuplicate())
+                    .build())
+        .forEach(drg -> responseBuilder.addDeploymentsBuilder().setDecisionRequirements(drg));
 
     return responseBuilder.build();
   }
