@@ -24,7 +24,7 @@
           "code": "java.method.addedToInterface",
           "new": {
             "matcher": "java-package",
-            "match": "/io\\.camunda\\.zeebe\\.protocol\\.record\\.value(\\..*)?/"
+            "match": "/io\\.camunda\\.zeebe\\.protocol\\.record(\\..*)?/"
           }
         },
         {
