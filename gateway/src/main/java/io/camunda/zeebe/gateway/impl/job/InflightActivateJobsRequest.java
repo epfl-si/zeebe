@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.Objects;
 import org.slf4j.Logger;
 
-public final class InflightActivateJobsRequest {
+public class InflightActivateJobsRequest {
 
   private static final Logger LOG = Loggers.GATEWAY_LOGGER;
   private final long requestId;

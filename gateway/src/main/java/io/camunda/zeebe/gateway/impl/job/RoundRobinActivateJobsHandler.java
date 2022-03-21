@@ -21,14 +21,17 @@ import io.camunda.zeebe.gateway.impl.broker.PartitionIdIterator;
 import io.camunda.zeebe.gateway.impl.broker.RequestDispatchStrategy;
 import io.camunda.zeebe.gateway.impl.broker.RoundRobinDispatchStrategy;
 import io.camunda.zeebe.gateway.impl.broker.cluster.BrokerTopologyManager;
+import io.camunda.zeebe.gateway.impl.broker.request.BrokerFailJobRequest;
 import io.camunda.zeebe.gateway.impl.broker.response.BrokerResponse;
 import io.camunda.zeebe.gateway.protocol.GatewayOuterClass.ActivateJobsRequest;
 import io.camunda.zeebe.gateway.protocol.GatewayOuterClass.ActivateJobsResponse;
+import io.camunda.zeebe.gateway.protocol.GatewayOuterClass.ActivatedJob;
 import io.camunda.zeebe.protocol.impl.record.value.job.JobBatchRecord;
 import io.camunda.zeebe.protocol.record.ErrorCode;
 import io.camunda.zeebe.util.Either;
 import io.camunda.zeebe.util.sched.ActorControl;
 import io.grpc.protobuf.StatusProto;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
@@ -157,10 +160,12 @@ public final class RoundRobinActivateJobsHandler
             final var responseWasSent = result.isRight() && result.get();
 
             if (!responseWasSent) {
+              final var activatedJobsToReactivate = grpcResponse.getJobsList();
               final var reason = createReasonMessage(result);
               final var jobType = request.getType();
 
               logResponseNotSent(jobType, reason);
+              reactivateJobs(activatedJobsToReactivate, reason);
               cancelActivateJobsRequest(reason, delegate);
               return;
             }
@@ -184,6 +189,30 @@ public final class RoundRobinActivateJobsHandler
       errorMessage = ACTIVATE_JOB_NOT_SENT_MSG;
     }
     return errorMessage;
+  }
+
+  private void reactivateJobs(final List<ActivatedJob> activateJobs, final String message) {
+    if (activateJobs != null) {
+      activateJobs.forEach(j -> tryToReactivateJob(j, message));
+    }
+  }
+
+  private void tryToReactivateJob(final ActivatedJob job, final String message) {
+    final var request = toFailJobRequest(job, message);
+    brokerClient
+        .sendRequestWithRetry(request)
+        .whenComplete(
+            (response, error) -> {
+              if (error != null) {
+                Loggers.GATEWAY_LOGGER.info(
+                    "Failed to reactivate job {} due to {}", job.getKey(), error.getMessage());
+              }
+            });
+  }
+
+  private BrokerFailJobRequest toFailJobRequest(final ActivatedJob job, final String errorMessage) {
+    return new BrokerFailJobRequest(job.getKey(), job.getRetries(), 0)
+        .setErrorMessage(errorMessage);
   }
 
   private void cancelActivateJobsRequest(
