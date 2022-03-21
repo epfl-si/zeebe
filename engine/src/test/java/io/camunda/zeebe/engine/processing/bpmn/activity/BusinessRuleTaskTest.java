@@ -42,6 +42,8 @@ public final class BusinessRuleTaskTest {
   @ClassRule public static final EngineRule ENGINE = EngineRule.singlePartition();
 
   private static final String DMN_RESOURCE = "/dmn/drg-force-user.dmn";
+  private static final String DMN_RESOURCE_WITH_NAMELESS_INPUTS =
+      "/dmn/drg-force-user-nameless-inputs.dmn";
   private static final String PROCESS_ID = "process";
   private static final String TASK_ID = "task";
   private static final String RESULT_VARIABLE = "result";
@@ -459,8 +461,59 @@ public final class BusinessRuleTaskTest {
         .hasDecisionOutput("null")
         .satisfies(
             evaluatedDecision -> {
-              assertThat(evaluatedDecision.getEvaluatedInputs()).hasSize(0);
-              assertThat(evaluatedDecision.getMatchedRules()).hasSize(0);
+              assertThat(evaluatedDecision.getEvaluatedInputs()).isEmpty();
+              assertThat(evaluatedDecision.getMatchedRules()).isEmpty();
+            });
+  }
+
+  /**
+   * Names are not mandatory for the Inputs and Outputs of a decision table. In the case that they
+   * are missing from the decision model, the decision should still be evaluated and the evaluated
+   * decision result should be written with all information that is present. See
+   * https://github.com/camunda-cloud/zeebe/issues/8909
+   */
+  @Test
+  public void shouldWriteDecisionEvaluationEventIfInputOutputNamesAreNull() {
+    // given
+    ENGINE
+        .deployment()
+        .withXmlClasspathResource(DMN_RESOURCE_WITH_NAMELESS_INPUTS)
+        .withXmlResource(
+            processWithBusinessRuleTask(
+                t -> t.zeebeCalledDecisionId("force_user").zeebeResultVariable(RESULT_VARIABLE)))
+        .deploy();
+
+    // when
+    final long processInstanceKey =
+        ENGINE
+            .processInstance()
+            .ofBpmnProcessId(PROCESS_ID)
+            .withVariables(Map.ofEntries(entry("lightsaberColor", "blue"), entry("height", 182)))
+            .create();
+
+    // then
+    final var decisionEvaluationRecord =
+        RecordingExporter.decisionEvaluationRecords()
+            .withProcessInstanceKey(processInstanceKey)
+            .getFirst();
+
+    assertThat(decisionEvaluationRecord.getValue().getEvaluatedDecisions())
+        .isNotEmpty()
+        .allSatisfy(
+            evaluatedDecision -> {
+              assertThat(evaluatedDecision.getEvaluatedInputs())
+                  .isNotEmpty()
+                  .describedAs("Expect that evaluated input's name is empty string")
+                  .allSatisfy(input -> assertThat(input).hasInputName(""));
+
+              assertThat(evaluatedDecision.getMatchedRules())
+                  .isNotEmpty()
+                  .allSatisfy(
+                      matchedRule ->
+                          assertThat(matchedRule.getEvaluatedOutputs())
+                              .isNotEmpty()
+                              .describedAs("Expect that evaluated output's name is empty string")
+                              .allSatisfy(output -> assertThat(output).hasOutputName("")));
             });
   }
 }
