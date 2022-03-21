@@ -22,6 +22,7 @@ import io.camunda.zeebe.engine.state.mutable.MutableJobState;
 import io.camunda.zeebe.protocol.impl.record.value.job.JobRecord;
 import io.camunda.zeebe.util.EnsureUtil;
 import io.camunda.zeebe.util.buffer.BufferUtil;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -248,16 +249,30 @@ public final class DbJobState implements JobState, MutableJobState {
   @Override
   public void forEachTimedOutEntry(
       final long upperBound, final BiFunction<Long, JobRecord, Boolean> callback) {
+    LOG.info("forEachTimedOutEntry: starting");
+    final AtomicInteger counter = new AtomicInteger(0);
     deadlinesColumnFamily.whileTrue(
         (key, value) -> {
+          counter.getAndIncrement();
           final long deadline = key.getFirst().getValue();
           final boolean isDue = deadline < upperBound;
           if (isDue) {
             final long jobKey1 = key.getSecond().getValue();
-            return visitJob(jobKey1, callback::apply, () -> deadlinesColumnFamily.delete(key));
+            final boolean success =
+                visitJob(jobKey1, callback::apply, () -> deadlinesColumnFamily.delete(key));
+            if (!success) {
+              LOG.error(
+                  "forEachTimedOutEntry: bailing out after failed visitJob at count = {}",
+                  counter.get());
+            }
+            return success;
           }
+          LOG.error(
+              "forEachTimedOutEntry: encountered first entry past the upperBound at count = {}",
+              counter.get());
           return false;
         });
+    LOG.error("forEachTimedOutEntry: done at count = {}", counter.get());
   }
 
   @Override
@@ -289,13 +304,25 @@ public final class DbJobState implements JobState, MutableJobState {
       final DirectBuffer type, final BiFunction<Long, JobRecord, Boolean> callback) {
     jobTypeKey.wrapBuffer(type);
 
+    LOG.info("forEachActivatableJobs: starting");
+    final AtomicInteger counter = new AtomicInteger(0);
+
     activatableColumnFamily.whileEqualPrefix(
         jobTypeKey,
         ((compositeKey, zbNil) -> {
+          counter.getAndIncrement();
           final long jobKey = compositeKey.getSecond().getValue();
           // TODO #6521 reconsider race condition and whether or not the cleanup task is needed
-          return visitJob(jobKey, callback::apply, () -> {});
+          final boolean success = visitJob(jobKey, callback::apply, () -> {});
+          if (!success) {
+            LOG.error(
+                "forEachActivatableJobs: bailing out after failed visitJob {} (counter = {})",
+                compositeKey,
+                counter.get());
+          }
+          return success;
         }));
+    LOG.info("forEachActivatableJobs: done, processed {} jobs", counter.get());
   }
 
   @Override
