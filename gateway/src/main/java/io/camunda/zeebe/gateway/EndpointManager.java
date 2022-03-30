@@ -162,6 +162,7 @@ public final class EndpointManager {
   public void completeJob(
       final CompleteJobRequest request,
       final ServerStreamObserver<CompleteJobResponse> responseObserver) {
+    Loggers.GATEWAY_LOGGER.info("completeJob");
     sendRequest(
         request,
         RequestMapper::toCompleteJobRequest,

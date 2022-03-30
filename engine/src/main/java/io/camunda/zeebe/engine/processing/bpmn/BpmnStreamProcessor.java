@@ -106,7 +106,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<ProcessIn
         .isValidStateTransition(context)
         .ifRightOrLeft(
             ok -> {
-              LOGGER.trace("Process process instance event [context: {}]", context);
+              LOGGER.info("Process process instance event [context: {}]", context);
               processEvent(intent, processor, element);
             },
             violation ->
@@ -122,6 +122,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<ProcessIn
     switch (intent) {
       case ACTIVATE_ELEMENT:
         final var activatingContext = stateTransitionBehavior.transitionToActivating(context);
+        LOGGER.info("ACTIVATE_ELEMENT");
         stateTransitionBehavior
             .onElementActivating(element, activatingContext)
             .ifRightOrLeft(
@@ -129,6 +130,7 @@ public final class BpmnStreamProcessor implements TypedRecordProcessor<ProcessIn
                 failure -> incidentBehavior.createIncident(failure, activatingContext));
         break;
       case COMPLETE_ELEMENT:
+        LOGGER.info("COMPLETE_ELEMENT");
         final var completingContext = stateTransitionBehavior.transitionToCompleting(context);
         processor.onComplete(element, completingContext);
         break;

@@ -17,8 +17,11 @@ import io.camunda.zeebe.engine.state.mutable.MutableEventScopeInstanceState;
 import java.util.Collection;
 import java.util.function.BiConsumer;
 import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class DbEventScopeInstanceState implements MutableEventScopeInstanceState {
+  private static final Logger LOGGER = LoggerFactory.getLogger(DbEventScopeInstanceState.class);
 
   private final DbLong eventScopeKey;
   private final EventScopeInstance eventScopeInstance;
@@ -105,11 +108,14 @@ public final class DbEventScopeInstanceState implements MutableEventScopeInstanc
     this.eventScopeKey.wrapLong(eventScopeKey);
     final EventScopeInstance instance = eventScopeInstanceColumnFamily.get(this.eventScopeKey);
 
+    LOGGER.info("triggerEvent: instance {}", instance);
     if (canTriggerEvent(instance, elementId)) {
+        LOGGER.info("... canTriggerEvent");
       final var isInterruptingElementId = instance.isInterruptingElementId(elementId);
       final var isBoundaryElementId = instance.isBoundaryElementId(elementId);
 
       if (isInterruptingElementId) {
+        LOGGER.info("... isInterrupting");
         instance.setInterrupted(true);
       }
       if (isBoundaryElementId && isInterruptingElementId) {
@@ -119,6 +125,8 @@ public final class DbEventScopeInstanceState implements MutableEventScopeInstanc
       eventScopeInstanceColumnFamily.put(this.eventScopeKey, instance);
 
       createTrigger(eventScopeKey, eventKey, elementId, variables);
+    } else {
+        LOGGER.info("... is not accepting");
     }
   }
 
@@ -188,6 +196,13 @@ public final class DbEventScopeInstanceState implements MutableEventScopeInstanc
     eventTriggerEventKey.wrapLong(eventKey);
 
     eventTrigger.setElementId(elementId).setVariables(variables).setEventKey(eventKey);
+
+    LOGGER.info("createTrigger called with variables capacity {}", variables.capacity());
+    try {
+      throw new Error("createTrigger");
+    } catch (final Error e) {
+      LOGGER.error("createTrigger", e);
+    }
 
     eventTriggerColumnFamily.put(eventTriggerKey, eventTrigger);
   }

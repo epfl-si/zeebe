@@ -17,12 +17,15 @@ import io.camunda.zeebe.engine.processing.bpmn.behavior.BpmnStateBehavior;
 import io.camunda.zeebe.engine.processing.bpmn.behavior.BpmnStateTransitionBehavior;
 import io.camunda.zeebe.engine.processing.bpmn.behavior.BpmnVariableMappingBehavior;
 import io.camunda.zeebe.engine.processing.deployment.model.element.ExecutableJobWorkerTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A BPMN processor for tasks that are based on jobs and should be processed by job workers. For
  * example, service tasks.
  */
 public final class JobWorkerTaskProcessor implements BpmnElementProcessor<ExecutableJobWorkerTask> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobWorkerTaskProcessor.class);
 
   private final BpmnIncidentBehavior incidentBehavior;
   private final BpmnStateTransitionBehavior stateTransitionBehavior;
@@ -47,6 +50,7 @@ public final class JobWorkerTaskProcessor implements BpmnElementProcessor<Execut
 
   @Override
   public void onActivate(final ExecutableJobWorkerTask element, final BpmnElementContext context) {
+    LOGGER.info("onActivate");
     variableMappingBehavior
         .applyInputMappings(context, element)
         .flatMap(ok -> eventSubscriptionBehavior.subscribeToEvents(element, context))
@@ -58,6 +62,7 @@ public final class JobWorkerTaskProcessor implements BpmnElementProcessor<Execut
 
   @Override
   public void onComplete(final ExecutableJobWorkerTask element, final BpmnElementContext context) {
+    LOGGER.info("onComplete");
     variableMappingBehavior
         .applyOutputMappings(context, element)
         .flatMap(

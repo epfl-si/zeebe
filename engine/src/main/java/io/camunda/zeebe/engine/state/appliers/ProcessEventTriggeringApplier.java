@@ -16,10 +16,13 @@ import io.camunda.zeebe.protocol.impl.record.value.processinstance.ProcessEventR
 import io.camunda.zeebe.protocol.record.intent.ProcessEventIntent;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class ProcessEventTriggeringApplier
     implements TypedEventApplier<ProcessEventIntent, ProcessEventRecord> {
   private static final DirectBuffer NO_VARIABLES = new UnsafeBuffer();
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessEventTriggeringApplier.class);
   private final MutableEventScopeInstanceState eventScopeState;
   private final EventSubProcessInterruptionMarker eventSubProcessInterruptionMarker;
 
@@ -37,6 +40,7 @@ final class ProcessEventTriggeringApplier
     var variables = value.getVariablesBuffer();
     if (variables.equals(DocumentValue.EMPTY_DOCUMENT)) {
       // avoid storing an empty document
+      LOGGER.info("Avoid storing an empty document");
       variables = NO_VARIABLES;
     }
 
@@ -44,8 +48,13 @@ final class ProcessEventTriggeringApplier
     final var scopeKey = value.getScopeKey();
 
     if (value.getProcessDefinitionKey() == scopeKey) {
+      LOGGER.info("value.getProcessDefinitionKey() == scopeKey (both {})", scopeKey);
       eventScopeState.triggerStartEvent(scopeKey, key, targetElementIdBuffer, variables);
     } else {
+      LOGGER.info(
+          "value.getProcessDefinitionKey() and scopeKey are distinct ({} vs. {})",
+          value.getProcessDefinitionKey(),
+          scopeKey);
       eventScopeState.triggerEvent(scopeKey, key, targetElementIdBuffer, variables);
     }
     eventSubProcessInterruptionMarker.markInstanceIfInterrupted(

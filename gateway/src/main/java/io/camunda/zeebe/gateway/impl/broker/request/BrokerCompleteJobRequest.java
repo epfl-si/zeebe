@@ -11,13 +11,17 @@ import io.camunda.zeebe.protocol.impl.record.value.job.JobRecord;
 import io.camunda.zeebe.protocol.record.ValueType;
 import io.camunda.zeebe.protocol.record.intent.JobIntent;
 import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class BrokerCompleteJobRequest extends BrokerExecuteCommand<JobRecord> {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(BrokerCompleteJobRequest.class);
   private final JobRecord requestDto = new JobRecord();
 
   public BrokerCompleteJobRequest(final long key, final DirectBuffer variables) {
     super(ValueType.JOB, JobIntent.COMPLETE);
+    LOGGER.info("BrokerCompleteJobRequest with variables of size {}", variables.capacity());
     request.setKey(key);
     requestDto.setVariables(variables);
   }

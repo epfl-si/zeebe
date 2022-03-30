@@ -17,6 +17,8 @@ import io.camunda.zeebe.protocol.impl.record.value.variable.VariableRecord;
 import io.camunda.zeebe.protocol.record.intent.VariableIntent;
 import java.util.Iterator;
 import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A behavior which allows processors to mutate the variable state. Use this anywhere where you
@@ -27,6 +29,7 @@ import org.agrona.DirectBuffer;
  */
 public final class VariableBehavior {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(VariableBehavior.class);
   private final VariableState variableState;
   private final StateWriter stateWriter;
   private final KeyGenerator keyGenerator;
@@ -62,6 +65,7 @@ public final class VariableBehavior {
       final long processDefinitionKey,
       final long processInstanceKey,
       final DirectBuffer document) {
+    LOGGER.info("mergeLocalDocument");
     indexedDocument.index(document);
     if (indexedDocument.isEmpty()) {
       return;
@@ -103,8 +107,10 @@ public final class VariableBehavior {
       final long processDefinitionKey,
       final long processInstanceKey,
       final DirectBuffer document) {
+    LOGGER.info("mergeDocument");
     indexedDocument.index(document);
     if (indexedDocument.isEmpty()) {
+      LOGGER.info("indexedDocument.isEmpty()");
       return;
     }
 
@@ -177,6 +183,12 @@ public final class VariableBehavior {
   }
 
   private void setLocalVariable(final VariableRecord record) {
+    try {
+      LOGGER.info("setLocalVariable: starting for {}", record.getName());
+      throw new Error("setLocalVariable");
+    } catch (final Error e) {
+      LOGGER.error("setLocalVariable", e);
+    }
     final VariableInstance variableInstance =
         variableState.getVariableInstanceLocal(record.getScopeKey(), record.getNameBuffer());
     if (variableInstance == null) {

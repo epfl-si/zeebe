@@ -24,8 +24,11 @@ import io.camunda.zeebe.protocol.record.value.BpmnElementType;
 import io.camunda.zeebe.util.Either;
 import java.util.Optional;
 import org.agrona.DirectBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class BpmnVariableMappingBehavior {
+  private static final Logger LOGGER = LoggerFactory.getLogger(BpmnVariableMappingBehavior.class);
   private final ExpressionProcessor expressionProcessor;
   private final VariableState variablesState;
   private final ElementInstanceState elementInstanceState;
@@ -52,12 +55,15 @@ public final class BpmnVariableMappingBehavior {
    */
   public Either<Failure, Void> applyInputMappings(
       final BpmnElementContext context, final ExecutableFlowNode element) {
+    LOGGER.info("applyInputMappings");
+
     final long scopeKey = context.getElementInstanceKey();
     final long processDefinitionKey = context.getProcessDefinitionKey();
     final long processInstanceKey = context.getProcessInstanceKey();
     final Optional<Expression> inputMappingExpression = element.getInputMappings();
 
     if (inputMappingExpression.isPresent()) {
+      LOGGER.info("inputMappingExpression.isPresent()");
       return expressionProcessor
           .evaluateVariableMappingExpression(inputMappingExpression.get(), scopeKey)
           .map(
@@ -79,12 +85,20 @@ public final class BpmnVariableMappingBehavior {
    */
   public Either<Failure, Void> applyOutputMappings(
       final BpmnElementContext context, final ExecutableFlowNode element) {
+    LOGGER.info("applyOutputMappings");
     final ProcessInstanceRecord record = context.getRecordValue();
     final long elementInstanceKey = context.getElementInstanceKey();
     final long processDefinitionKey = record.getProcessDefinitionKey();
     final long processInstanceKey = record.getProcessInstanceKey();
     final long scopeKey = getVariableScopeKey(context);
     final Optional<Expression> outputMappingExpression = element.getOutputMappings();
+    LOGGER.info(
+        "applyOutputMappings: elementInstanceKey={}, processDefinitionKey={}, processInstanceKey={}, scopeKey={}, outputMappingExpression={}",
+        elementInstanceKey,
+        processDefinitionKey,
+        processInstanceKey,
+        scopeKey,
+        outputMappingExpression);
 
     final EventTrigger eventTrigger = eventScopeInstanceState.peekEventTrigger(elementInstanceKey);
     boolean hasVariables = false;
@@ -96,8 +110,11 @@ public final class BpmnVariableMappingBehavior {
     }
 
     if (outputMappingExpression.isPresent()) {
+      LOGGER.info("applyOutputMappings: outputMappingExpression.isPresent()");
       // set as local variables
       if (hasVariables) {
+        LOGGER.info("applyOutputMappings: ... and hasVariables");
+
         variableBehavior.mergeLocalDocument(
             elementInstanceKey, processDefinitionKey, processInstanceKey, variables);
       }
@@ -113,12 +130,14 @@ public final class BpmnVariableMappingBehavior {
               });
 
     } else if (hasVariables) {
+      LOGGER.info("applyOutputMappings: hasVariables");
       // merge/propagate the event variables by default
       variableBehavior.mergeDocument(
           elementInstanceKey, processDefinitionKey, processInstanceKey, variables);
     } else if (isConnectedToEventBasedGateway(element)
         || element.getElementType() == BpmnElementType.BOUNDARY_EVENT
         || element.getElementType() == BpmnElementType.START_EVENT) {
+      LOGGER.info("applyOutputMappings: isConnectedToEventBasedGateway etc.");
       // event variables are set local variables instead of temporary variables
       final var localVariables = variablesState.getVariablesLocalAsDocument(elementInstanceKey);
       variableBehavior.mergeDocument(
