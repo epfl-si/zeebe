@@ -46,7 +46,7 @@
     <version.bouncycastle>1.70</version.bouncycastle>
     <version.camunda>7.16.0</version.camunda>
     <version.checkstyle>10.0</version.checkstyle>
-    <version.commons-lang>3.12.0</version.commons-lang>
+    <version.commons-lang>3.18.0</version.commons-lang>
     <version.commons-logging>1.2</version.commons-logging>
     <version.commons-math>3.6.1</version.commons-math>
     <version.commons-codec>1.15</version.commons-codec>
